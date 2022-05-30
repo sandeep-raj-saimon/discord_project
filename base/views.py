@@ -1,5 +1,8 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.db.models import Q
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
 # Create your views here.
 from .models import *
 from .forms import *
@@ -17,13 +20,43 @@ from .forms import *
 #         'name':'Lets learn Ruby'
 #     }
 # ]
+
+def loginRegister(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        try:
+            user = User.objects.get(username = username)
+        except:
+            messages.error(request, 'User does not exist')
+        
+        user = authenticate(request, username = username, password = password)
+        if user != None:
+            login(request, user)
+            return redirect('home')
+        else:
+            messages.error(request, 'Username or Password does not exist')
+    params = {}
+    return render(request, 'base/login_register.html', params)
+
+def logoutUser(request):
+    logout(request)
+    return redirect('home')
+
 def home(request):
     q = request.GET.get('q') if request.GET.get('q') != None else ''
     params = {}
-    rooms = Room.objects.filter(topic__name__icontains = q)
+    rooms = Room.objects.filter(
+        Q(topic__name__icontains = q) |
+        Q(name__icontains=q) |
+        Q(description__icontains=q)
+        )
+    rooms_count = rooms.count()
     topics = Topic.objects.all()
-    params["rooms"] = rooms
+    params["rooms"] = rooms 
     params["topics"]= topics
+    params["rooms_count"] = rooms_count
     return render (request, 'base/home.html',params)
 
 def room(request, pk):
